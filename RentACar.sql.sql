@@ -58,7 +58,7 @@ INSERT INTO Vehicles(Brand, Model, Registration, Color, VehicleType, Mileage, Re
 ('Kia', 'Seltos', 'ZG-1475-OK', 'Red', 'SUV', 125, '2020-7-25', '2021-8-20', 150, 220),
 ('Audi', 'SQ5', 'ZG-1054-FF', 'Black', 'SUV', 1245, '2019-8-22', '2020-8-25', 150, 220),
 ('Audi', 'SQ8', 'ST-456-BA', 'Blue', 'SUV', 2255, '2020-12-12', '2021-12-28', 150, 220),
-('Alfa Romeo', 'Stelvio', 'Black', 'ST-884-UR', 'SUV', 9887, '2020-5-2', '2020-5-20', 150, 220),
+('Alfa Romeo', 'Stelvio', 'ST-884-UR', 'Black', 'SUV', 9887, '2020-5-2', '2020-5-20', 150, 220),
 ('BMW', 'M2', 'DA-887-IJ', 'Grey', 'Coupe', 13000, '2019-4-21', '2021-1-4', 200, 280),
 ('Toyota', 'Supra', 'RI-122-KK', 'White', 'Coupe', 4848, '2019-4-21', '2020-5-4', 200, 280),
 ('Chevrolet', 'Camaro', 'ST-1224-VO', 'White', 'Coupe', 654, '2020-9-14', '2021-10-4', 200, 280),
@@ -93,5 +93,109 @@ INSERT INTO Rents (VehicleId, EmployeeId, CustomerFirstName, CustomerLastName, C
 (19, 4, 'Robert', 'Downey', '11486563298', '1958-4-22', '20050047', '2001451098749660', '2020-11-21 10:30', 3.5),
 (8, 2, 'Miley', 'Cyrus', '54966326548', '1985-1-2', '25500047', '3655201447859102', '2020-12-17 21:00', 4),
 (17, 5, 'Leonardo', 'di Caprio', '72554785410', '1965-8-10', '10015478', '2589541102336584', '2020-12-26 18:30', 2),
-(16, 3, 'Leo', 'Messi', '81587056860', '1946-2-18', '22547810', '9584521455009262', '2019-12-26 12:00', 7);
+(16, 3, 'Leo', 'Messi', '81587056860', '1946-2-18', '22547810', '9584521455009262', '2020-12-26 12:00', 7);
 
+INSERT INTO Rents (VehicleId, EmployeeId, CustomerFirstName, CustomerLastName, CustomerOib, CustomerBirthDate, CustomerLicenceNumber, CustomerCreditCard, RentStart, RentDuration) VALUES
+(14, 2, 'Brad', 'Pitt', '65475511214', '1958-4-10','10455852', '3695555491121495', '2019-9-29 15:00', 5);
+
+--
+
+SELECT * FROM Vehicles
+WHERE RegistrationExpires < GETDATE();
+
+
+SELECT * FROM Vehicles 
+WHERE RegistrationExpires BETWEEN GETDATE() AND DATEADD(month, 1, GETDATE());
+
+
+SELECT Vehicles.VehicleType, COUNT(*) as NumberOfVehicles from Vehicles
+GROUP BY Vehicles.VehicleType;
+
+
+SELECT TOP 5 e.FirstName, e.LastName, v.Brand, v.Model, V.Registration, v.Color, r.RentStart, r.RentDuration FROM Employees e
+JOIN Rents r ON r.EmployeeId = e.Id
+JOIN Vehicles v ON v.Id = r.VehicleId
+WHERE EmployeeId = 2 
+ORDER BY RentStart DESC;
+
+
+SELECT r.CustomerFirstName, r.CustomerLastName, r.CustomerCreditCard, r.RentStart, r.RentDuration, v.Brand, v.Model, v.Registration, 
+CASE
+	WHEN DATEPART(dayofyear, RentStart) < 61 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) < 61 OR
+	DATEPART(dayofyear, RentStart) > 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) > 275 OR
+	DATEPART(dayofyear, RentStart) > 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) < 61
+	THEN RentDuration * WinterPrice
+
+	WHEN DATEPART(dayofyear, RentStart) BETWEEN 61 AND 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) BETWEEN 61 AND 275 
+	THEN RentDuration * SummerPrice
+
+	WHEN DATEPART(dayofyear, RentStart) < 61 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) BETWEEN 61 AND 275
+	THEN DATEDIFF(dd, RentStart, CAST(YEAR(RentStart) AS NVARCHAR) + '-03-01') * WinterPrice +
+	DATEDIFF(dd, CAST(YEAR(RentStart) AS NVARCHAR) + '-03-01', DATEADD(dd, RentDuration, RentStart)) * SummerPrice
+
+	WHEN DATEPART(dayofyear, RentStart) BETWEEN 61 AND 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) > 275
+	THEN DATEDIFF(dd, RentStart, CAST(YEAR(RentStart) AS NVARCHAR) + '-10-02') * SummerPrice +
+	DATEDIFF(dd, CAST(YEAR(RentStart) AS NVARCHAR) + '-10-02', DATEADD(dd, RentDuration, RentStart)) * WinterPrice
+END AS Price
+FROM Rents r
+JOIN Vehicles v ON v.Id = r.VehicleId
+JOIN Employees e ON e.Id = r.EmployeeId
+WHERE r.CustomerOib = '65475511214' AND r.VehicleId = 14 AND r.EmployeeId = 2;
+
+
+SELECT DISTINCT(CustomerOib), CustomerFirstName, CustomerLastName, CustomerBirthDate, CustomerLicenceNumber FROM Rents;
+
+
+SELECT MIN(e.FirstName) AS FirstName, MIN(e.LastName) AS LastName, MAX(r.RentStart) AS LastRent FROM Rents r
+JOIN Employees e ON e.Id = r.EmployeeId
+GROUP BY r.EmployeeId;
+
+
+SELECT Vehicles.Brand, COUNT(*) AS NumberOfVehicles FROM Vehicles
+GROUP BY Vehicles.Brand
+ORDER BY NumberOfVehicles DESC;
+
+
+SELECT r.VehicleId, r.EmployeeId, r.CustomerFirstName, r.CustomerLastName, r.CustomerOib, r.CustomerBirthDate, r.CustomerLicenceNumber, r.CustomerCreditCard, r.RentStart, r.RentDuration, 
+CASE
+	WHEN DATEPART(dayofyear, RentStart) < 61 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) < 61 OR
+	DATEPART(dayofyear, RentStart) > 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) > 275 OR
+	DATEPART(dayofyear, RentStart) > 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) < 61
+	THEN RentDuration * WinterPrice
+
+	WHEN DATEPART(dayofyear, RentStart) BETWEEN 61 AND 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) BETWEEN 61 AND 275 
+	THEN RentDuration * SummerPrice
+
+	WHEN DATEPART(dayofyear, RentStart) < 61 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) BETWEEN 61 AND 275
+	THEN DATEDIFF(dd, RentStart, CAST(YEAR(RentStart) AS NVARCHAR) + '-03-01') * WinterPrice +
+	DATEDIFF(dd, CAST(YEAR(RentStart) AS NVARCHAR) + '-03-01', DATEADD(dd, RentDuration, RentStart)) * SummerPrice
+
+	WHEN DATEPART(dayofyear, RentStart) BETWEEN 61 AND 275 AND DATEPART(dayofyear, DATEADD(dd, RentDuration, RentStart)) > 275
+	THEN DATEDIFF(dd, RentStart, CAST(YEAR(RentStart) AS NVARCHAR) + '-10-02') * SummerPrice +
+	DATEDIFF(dd, CAST(YEAR(RentStart) AS NVARCHAR) + '-10-02', DATEADD(dd, RentDuration, RentStart)) * WinterPrice
+END AS Price
+INTO FinishedRents FROM Rents r
+JOIN Vehicles v ON v.Id = r.VehicleId
+WHERE DATEADD(dd, RentDuration, RentStart) < GETDATE();
+
+SELECT * FROM FinishedRents;
+
+
+SELECT DISTINCT(DATENAME(month, Rents.RentStart)) AS Month, COUNT(*) NumberOfRents FROM Rents
+WHERE YEAR(Rents.RentStart) = 2020
+GROUP BY DATENAME(month,Rents.RentStart);
+
+
+SELECT *,
+CASE
+	WHEN RegistrationExpires BETWEEN GETDATE() AND DATEADD(month, 1, GETDATE()) OR RegistrationExpires < GETDATE()
+	THEN 'Treba registraciju'
+	ELSE 'Ne treba registraciju'
+END AS DoesNeedRegistration
+FROM Vehicles WHERE VehicleType = 'Coupe';
+
+
+SELECT v.VehicleType, COUNT(*) LongerThenAvarageRents FROM Rents r
+JOIN Vehicles v ON v.Id = r.VehicleId
+WHERE RentDuration > (SELECT AVG(CAST(RentDuration AS float)) FROM Rents)
+GROUP BY v.VehicleType;
